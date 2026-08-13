@@ -204,3 +204,194 @@ button:focus-visible, textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+.adminInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #d8e3e0;
+  border-radius: 14px;
+  background: #fff;
+  color: #102321;
+}
+
+.adminInput:focus {
+  border-color: #245c5a;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(36, 92, 90, 0.08);
+}
+
+/* ---------- ADMIN DESKTOP UPGRADE ---------- */
+
+.desktopApp {
+  min-height: 100vh;
+  padding: 22px 28px 40px;
+  background:
+    radial-gradient(circle at top left, rgba(36, 92, 90, 0.07), transparent 28%),
+    #f4f7f6;
+}
+
+.desktopHeader {
+  width: min(1440px, 100%);
+  margin: 0 auto 20px;
+  padding: 4px 0 10px;
+}
+
+.desktopGrid {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 22px;
+}
+
+.desktopSidebar {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  min-height: calc(100vh - 90px);
+  padding: 18px 14px;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(23, 63, 61, 0.07);
+}
+
+.desktopSidebar > .eyebrow {
+  padding: 0 10px;
+  margin-bottom: 10px;
+}
+
+.patientNav {
+  min-height: 44px;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.patientNav:hover {
+  background: #f3f7f5;
+}
+
+.patientNav.active {
+  border-color: transparent;
+  background: #e8f1ef;
+}
+
+.patientNav strong {
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.desktopContent {
+  min-width: 0;
+}
+
+.heroPanel {
+  padding: 30px 32px;
+  margin-bottom: 18px;
+  border-radius: 24px;
+}
+
+.heroPanel h1 {
+  max-width: 760px;
+  font-size: clamp(36px, 4vw, 54px);
+}
+
+.heroPanel p {
+  max-width: 800px;
+  font-size: 15px;
+}
+
+.metricGrid {
+  gap: 14px;
+}
+
+.metric {
+  min-height: 110px;
+  padding: 18px;
+  border-radius: 18px;
+}
+
+.metric span {
+  font-size: 11px;
+}
+
+.metric strong {
+  font-size: 24px;
+}
+
+.dashboardCard {
+  border-radius: 22px;
+}
+
+.cardHeader {
+  padding: 24px 26px 20px;
+}
+
+.cardHeader h2 {
+  font-size: 24px;
+}
+
+.section {
+  padding: 20px 26px;
+}
+
+.adminInput {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid #d8e3e0;
+  border-radius: 14px;
+  background: #fff;
+  color: #102321;
+  font-size: 14px;
+}
+
+.adminInput:focus {
+  border-color: #245c5a;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(36, 92, 90, 0.08);
+}
+
+.practiceTable {
+  width: 100%;
+}
+
+.practiceRow {
+  min-width: 0;
+  grid-template-columns:
+    70px
+    minmax(120px, 1.1fr)
+    minmax(150px, 1.35fr)
+    minmax(90px, 0.8fr)
+    minmax(100px, 0.9fr)
+    minmax(130px, 1.2fr)
+    minmax(130px, 1.1fr);
+}
+
+.desktopButton {
+  min-width: 150px;
+}
+
+@media (max-width: 1180px) {
+  .desktopGrid {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .practiceRow {
+    min-width: 1050px;
+  }
+}
+
+@media (max-width: 900px) {
+  .desktopGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .desktopSidebar {
+    position: static;
+    min-height: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
