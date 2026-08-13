@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './patient-premium.css';
 
 export const metadata: Metadata = {
   title: 'Sitora Ready™ | Pre-Care Intelligence for Healthcare',

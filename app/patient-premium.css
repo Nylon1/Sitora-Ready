@@ -1,0 +1,215 @@
+.patientApp {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 34px 18px 54px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(36, 92, 90, 0.08), transparent 34%),
+    linear-gradient(180deg, #f8faf9 0%, #f1f5f3 100%);
+}
+
+.patientMobile {
+  width: min(100%, 470px);
+  min-height: calc(100vh - 88px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(23, 63, 61, 0.1);
+  border-radius: 34px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 28px 80px rgba(23, 63, 61, 0.14);
+}
+
+.patientMobile .phoneTop {
+  min-height: 72px;
+  padding: 24px 28px 15px;
+  font-size: 13px;
+}
+
+.patientMobile .phoneTop span:first-child {
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.patientMobile .progressTrack {
+  height: 6px;
+  margin: 0 28px;
+  background: #edf2f0;
+}
+
+.patientMobile .progressTrack > div {
+  background: linear-gradient(90deg, #245c5a, #6e9690);
+}
+
+.patientMobile .phoneBody {
+  flex: 1;
+  padding: 42px 34px 34px;
+}
+
+.patientMobile .screen h1 {
+  max-width: 390px;
+  margin-bottom: 18px;
+  font-size: clamp(34px, 6vw, 44px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.patientMobile .screen > p {
+  max-width: 390px;
+  margin-bottom: 26px;
+  color: #60716d;
+  font-size: 15.5px;
+  line-height: 1.72;
+}
+
+.patientMobile .eyebrow {
+  margin-bottom: 14px;
+  color: #3c716d;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+
+.patientMobile .infoCard {
+  padding: 21px 20px;
+  border-color: #dce7e4;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fbfa 100%);
+  box-shadow: 0 8px 24px rgba(23, 63, 61, 0.045);
+}
+
+.patientMobile .infoCard strong {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.patientMobile .infoCard span {
+  line-height: 1.55;
+}
+
+.patientMobile .summaryList {
+  gap: 10px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.patientMobile .summaryRow {
+  min-height: 68px;
+  padding: 17px 18px;
+  border: 1px solid #dfe8e5;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(23, 63, 61, 0.035);
+}
+
+.patientMobile .summaryRow span {
+  color: #38514d;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.patientMobile .summaryRow strong {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #edf5f2;
+  color: #245c5a;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.patientMobile .choiceGrid {
+  gap: 10px;
+}
+
+.patientMobile .choice {
+  min-height: 62px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border-color: #dce6e3;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.patientMobile .choice:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(23, 63, 61, 0.07);
+}
+
+.patientMobile .choice.selected {
+  background: #e9f2ef;
+  box-shadow: inset 0 0 0 1px #245c5a, 0 8px 22px rgba(23, 63, 61, 0.05);
+}
+
+.patientMobile .questionBox {
+  min-height: 150px;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.patientMobile .phoneActions {
+  position: sticky;
+  bottom: 0;
+  padding: 18px 28px 24px;
+  grid-template-columns: 0.85fr 1.55fr;
+  gap: 12px;
+  border-top: 1px solid rgba(220, 230, 227, 0.85);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+}
+
+.patientMobile .phoneActions .primary,
+.patientMobile .phoneActions .secondary {
+  min-height: 56px;
+  border-radius: 17px;
+}
+
+.patientMobile .phoneActions .primary {
+  background: linear-gradient(135deg, #245c5a 0%, #1b4947 100%);
+  box-shadow: 0 12px 28px rgba(36, 92, 90, 0.22);
+}
+
+.patientMobile .phoneActions .secondary {
+  border-color: transparent;
+  background: #f4f7f6;
+}
+
+.patientMobile input[type='checkbox'] {
+  accent-color: #245c5a;
+}
+
+@media (max-width: 720px) {
+  .patientApp {
+    padding: 0;
+    background: #fff;
+  }
+
+  .patientMobile {
+    width: 100%;
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  .patientMobile .phoneTop {
+    padding: calc(20px + env(safe-area-inset-top)) 22px 14px;
+  }
+
+  .patientMobile .progressTrack {
+    margin: 0 22px;
+  }
+
+  .patientMobile .phoneBody {
+    padding: 32px 22px 30px;
+  }
+
+  .patientMobile .screen h1 {
+    font-size: 36px;
+  }
+
+  .patientMobile .phoneActions {
+    padding: 16px 20px calc(18px + env(safe-area-inset-bottom));
+  }
+}
