@@ -45,14 +45,17 @@ export async function listTreatments(options?: { publishedOnly?: boolean }) {
     return options?.publishedOnly ? treatmentRegistry.filter((item) => item.status === 'Approved') : treatmentRegistry;
   }
 
-  const statusFilter = options?.publishedOnly ? '&status=eq.Approved' : '';
-  const response = await fetch(`${url}/rest/v1/treatment_registry?select=*&order=label.asc${statusFilter}`, {
+  const response = await fetch(`${url}/rest/v1/treatment_registry?select=*&order=label.asc`, {
     headers: headers(),
     cache: 'no-store',
   });
-
   if (!response.ok) throw new Error(`Treatment registry read failed: ${response.status}`);
-  return ((await response.json()) as any[]).map(normalise);
+
+  const persisted = ((await response.json()) as any[]).map(normalise);
+  const merged = new Map(treatmentRegistry.map((item) => [item.id, item]));
+  persisted.forEach((item) => merged.set(item.id, item));
+  const items = Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
+  return options?.publishedOnly ? items.filter((item) => item.status === 'Approved') : items;
 }
 
 export async function getTreatment(id: string) {
@@ -64,13 +67,16 @@ export async function getTreatment(id: string) {
   });
   if (!response.ok) throw new Error(`Treatment registry read failed: ${response.status}`);
   const rows = (await response.json()) as any[];
-  return rows[0] ? normalise(rows[0]) : null;
+  return rows[0] ? normalise(rows[0]) : treatmentRegistry.find((item) => item.id === id) ?? null;
 }
 
 export async function upsertTreatment(item: TreatmentRegistryItem, actor = 'prototype-admin') {
-  if (!isTreatmentStoreConfigured) throw new Error('Supabase treatment persistence is not configured.');
+  if (!isTreatmentStoreConfigured) throw new Error('Supabase treatment persistence is not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
 
-  const existing = await getTreatment(item.id);
+  const persistedResponse = await fetch(`${url}/rest/v1/treatment_registry?id=eq.${encodeURIComponent(item.id)}&select=*`, { headers: headers(), cache: 'no-store' });
+  const persistedRows = persistedResponse.ok ? ((await persistedResponse.json()) as any[]) : [];
+  const existing = persistedRows[0] ? normalise(persistedRows[0]) : null;
+
   if (existing) {
     await fetch(`${url}/rest/v1/treatment_registry_history`, {
       method: 'POST',
@@ -93,9 +99,10 @@ export async function upsertTreatment(item: TreatmentRegistryItem, actor = 'prot
 export async function publishTreatment(id: string, actor = 'prototype-admin') {
   const treatment = await getTreatment(id);
   if (!treatment) throw new Error('Treatment not found.');
-  const hasDraftContent = treatment.content.some((item) => item.status !== 'Approved');
-  if (hasDraftContent) throw new Error('All required treatment content must be approved before publishing.');
+  if (treatment.status !== 'In review') throw new Error('Treatment must be submitted for clinical review before publishing.');
+  const incompleteRequiredContent = treatment.content.some((item) => item.required && item.status !== 'Approved');
+  if (incompleteRequiredContent) throw new Error('All required treatment content must be approved before publishing.');
+  if (!treatment.consentPoints.length) throw new Error('At least one governed consent point is required before publishing.');
 
-  const next = { ...treatment, status: 'Approved' as const };
-  return upsertTreatment(next, actor);
+  return upsertTreatment({ ...treatment, status: 'Approved' }, actor);
 }
