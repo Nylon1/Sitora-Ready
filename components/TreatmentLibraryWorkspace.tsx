@@ -1,76 +1,103 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { treatmentDefinitions } from '../lib/treatment-content';
+import { treatmentRegistry } from '../lib/treatment-registry';
 
 export default function TreatmentLibraryWorkspace() {
-  const [selectedId, setSelectedId] = useState('implant');
-  const selected = useMemo(() => treatmentDefinitions.find((item) => item.id === selectedId) ?? treatmentDefinitions[0], [selectedId]);
+  const [selectedId, setSelectedId] = useState(treatmentRegistry[0].id);
+  const selected = useMemo(() => treatmentRegistry.find((item) => item.id === selectedId) ?? treatmentRegistry[0], [selectedId]);
   const approved = selected.content.filter((item) => item.status === 'Approved').length;
   const drafts = selected.content.filter((item) => item.status === 'Draft').length;
+  const preCarePoints = selected.consentPoints.filter((point) => point.source === 'pre-care');
+  const clinicianPoints = selected.consentPoints.filter((point) => point.source === 'clinician');
 
   return (
     <main className="desktopApp">
       <header className="desktopHeader">
-        <div><div className="brand">Sitora Ready™</div><div className="tagline">Treatment & Content Library</div></div>
-        <div className="headerMeta">Governed clinical content · Prototype</div>
+        <div><div className="brand">Sitora Ready™</div><div className="tagline">Treatment & Consent Registry</div></div>
+        <div className="headerMeta">One governed source of truth · Prototype</div>
       </header>
 
       <section className="desktopGrid">
         <aside className="desktopSidebar">
           <span className="eyebrow">Treatments</span>
-          {treatmentDefinitions.map((treatment) => (
-            <button key={treatment.id} className={treatment.id === selected.id ? 'patientNav active' : 'patientNav'} onClick={() => setSelectedId(treatment.id)} style={{border:0,textAlign:'left',width:'100%'}}>
-              <strong>{treatment.name}</strong>
+          {treatmentRegistry.map((treatment) => (
+            <button key={treatment.id} className={treatment.id === selected.id ? 'patientNav active' : 'patientNav'} onClick={() => setSelectedId(treatment.id)} style={{ border: 0, textAlign: 'left', width: '100%' }}>
+              <strong>{treatment.label}</strong>
               <span>{treatment.category}</span>
+              <em>{treatment.status}</em>
             </button>
           ))}
         </aside>
 
         <section className="desktopContent">
           <div className="heroPanel">
-            <div><span className="eyebrow">Treatment pathway</span><h1>{selected.name}</h1><p>{selected.category} · Estimated patient journey {selected.estimatedMinutes} minutes</p></div>
-            <span className={drafts ? 'status amber' : 'status green'}>{drafts ? `${drafts} draft item${drafts > 1 ? 's' : ''}` : 'Ready to use'}</span>
+            <div>
+              <span className="eyebrow">Governed treatment</span>
+              <h1>{selected.label}</h1>
+              <p>{selected.category} · v{selected.version} · Estimated patient journey {selected.estimatedMinutes} minutes</p>
+            </div>
+            <span className={selected.status === 'Approved' && drafts === 0 ? 'status green' : 'status amber'}>{selected.status === 'Approved' && drafts === 0 ? 'Ready to use' : 'Governance review'}</span>
           </div>
 
           <div className="metricGrid">
-            <div className="metric"><span>Content modules</span><strong>{selected.content.length}</strong></div>
-            <div className="metric"><span>Approved</span><strong>{approved}</strong></div>
-            <div className="metric"><span>Draft</span><strong>{drafts}</strong></div>
-            <div className="metric"><span>Journey length</span><strong>{selected.estimatedMinutes} min</strong></div>
+            <div className="metric"><span>Patient modules</span><strong>{selected.content.length}</strong></div>
+            <div className="metric"><span>Consent points</span><strong>{selected.consentPoints.length}</strong></div>
+            <div className="metric"><span>Pre-care points</span><strong>{preCarePoints.length}</strong></div>
+            <div className="metric"><span>Clinician points</span><strong>{clinicianPoints.length}</strong></div>
           </div>
 
-          <section className="dashboardCard">
-            <div className="cardHeader"><div><span className="eyebrow">Governed pathway</span><h2>Patient content sequence</h2></div><button className="primary desktopButton">+ Add module</button></div>
-            <div className="practiceTable">
-              <div className="practiceRow practiceHead" style={{gridTemplateColumns:'70px 1.4fr 120px 1.8fr 90px 90px'}}><span>Order</span><span>Module</span><span>Type</span><span>Purpose</span><span>Version</span><span>Status</span></div>
-              {selected.content.map((item, index) => (
-                <div className="practiceRow" key={item.id} style={{gridTemplateColumns:'70px 1.4fr 120px 1.8fr 90px 90px'}}>
-                  <strong>{String(index + 1).padStart(2,'0')}</strong>
-                  <span><strong style={{display:'block',color:'#173f3d'}}>{item.title}</strong>{item.required ? 'Required' : 'Optional'}</span>
-                  <span>{item.kind}</span>
-                  <span>{item.summary}</span>
-                  <span>v{item.version}</span>
-                  <span className={item.status === 'Approved' ? 'status green' : 'status amber'}>{item.status}</span>
-                </div>
-              ))}
+          <section className="dashboardCard" style={{ marginBottom: 18 }}>
+            <div className="cardHeader">
+              <div><span className="eyebrow">Registry</span><h2>One treatment definition drives the journey</h2></div>
+              <span className="status green">Engine connected</span>
+            </div>
+            <div className="section"><p>This treatment record now supplies the clinician consent engine with its treatment label, aliases, modules and required consent points. The same registry also supplies the Admin Treatment Library.</p></div>
+            <div className="auditList">
+              <div className="auditRow"><span>Treatment ID</span><strong>{selected.id}</strong></div>
+              <div className="auditRow"><span>Aliases</span><strong>{selected.aliases.join(' · ') || 'None'}</strong></div>
+              <div className="auditRow"><span>Pathway modules</span><strong>{selected.modules.join(' · ') || 'None'}</strong></div>
+              <div className="auditRow"><span>Registry version</span><strong>v{selected.version}</strong></div>
             </div>
           </section>
 
-          <div className="desktopCards" style={{marginTop:18}}>
+          <div className="desktopCards">
             <section className="dashboardCard">
-              <div className="cardHeader"><div><span className="eyebrow">Clinical governance</span><h2>Publishing controls</h2></div></div>
-              <div className="section"><span className="sectionTitle">Rule</span><p>Only approved, versioned content should be available to live patient journeys. Draft modules remain visible to administrators but are not sent.</p></div>
-              <div className="section"><span className="sectionTitle">Change control</span><p>A later production build should capture author, clinical reviewer, approval date, source references and superseded versions.</p></div>
-            </section>
-            <section className="dashboardCard">
-              <div className="cardHeader"><div><span className="eyebrow">Comprehension</span><h2>Understanding checks</h2></div></div>
+              <div className="cardHeader"><div><span className="eyebrow">Before</span><h2>Patient content sequence</h2></div></div>
               <div className="auditList">
-                {selected.content.filter((item) => item.kind === 'Comprehension').length === 0 && <p className="muted">No comprehension check has been added yet.</p>}
-                {selected.content.filter((item) => item.kind === 'Comprehension').map((item) => <div className="auditRow" key={item.id}><span>{item.title}</span><strong>{item.status}</strong></div>)}
+                {selected.content.length === 0 && <div className="auditRow"><span>No patient content configured yet</span><strong>Draft pathway</strong></div>}
+                {selected.content.map((item, index) => (
+                  <div className="auditRow" key={item.id}>
+                    <span><strong>{String(index + 1).padStart(2, '0')} · {item.title}</strong><br />{item.kind} · v{item.version}</span>
+                    <strong>{item.status}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="dashboardCard">
+              <div className="cardHeader"><div><span className="eyebrow">During</span><h2>Consent checklist rules</h2></div></div>
+              <div className="auditList">
+                {selected.consentPoints.map((point) => (
+                  <div className="auditRow" key={point.id}>
+                    <span>{point.label}</span>
+                    <strong>{point.source === 'pre-care' ? 'Pre-care' : 'Clinician'}</strong>
+                  </div>
+                ))}
               </div>
             </section>
           </div>
+
+          <section className="dashboardCard" style={{ marginTop: 18 }}>
+            <div className="cardHeader"><div><span className="eyebrow">Clinical governance</span><h2>Publishing readiness</h2></div></div>
+            <div className="auditList">
+              <div className="auditRow"><span>Registry status</span><strong>{selected.status}</strong></div>
+              <div className="auditRow"><span>Approved content modules</span><strong>{approved}/{selected.content.length}</strong></div>
+              <div className="auditRow"><span>Draft content modules</span><strong>{drafts}</strong></div>
+              <div className="auditRow"><span>Required consent rules configured</span><strong>{selected.consentPoints.length}</strong></div>
+            </div>
+            <div className="section"><p>Production should only publish a treatment after the treatment definition, patient content and clinician consent rules have completed clinical governance. The next backend step is to persist this registry in Supabase with author, reviewer, approval and version history.</p></div>
+          </section>
         </section>
       </section>
     </main>
