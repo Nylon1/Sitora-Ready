@@ -4,7 +4,7 @@ create table if not exists public.treatment_registry (
   aliases jsonb not null default '[]'::jsonb,
   category text not null,
   estimated_minutes integer not null default 5 check (estimated_minutes > 0),
-  status text not null default 'Draft' check (status in ('Draft','Approved')),
+  status text not null default 'Draft' check (status in ('Draft','In review','Approved')),
   version text not null default '0.1',
   modules jsonb not null default '[]'::jsonb,
   content jsonb not null default '[]'::jsonb,
