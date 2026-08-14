@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { demoPatients, getMissingModules, type DemoPatient } from '../lib/demo-data';
+import { demoPatients, type DemoPatient } from '../lib/demo-data';
 
 type ChecklistPoint = {
   id: string;
@@ -9,6 +9,19 @@ type ChecklistPoint = {
   source: 'pre-care' | 'clinician';
   detail: string;
 };
+
+type TreatmentOption = {
+  label: string;
+  modules: string[];
+};
+
+const treatmentOptions: TreatmentOption[] = [
+  { label: 'Implant UR6', modules: ['Implant placement', 'Implant failure', 'Maintenance & longevity'] },
+  { label: 'Implant + bone graft', modules: ['Implant placement', 'Implant failure', 'Maintenance & longevity', 'Bone graft'] },
+  { label: 'Surgical extraction', modules: ['Surgical extraction', 'Aftercare'] },
+  { label: 'Root canal', modules: ['Root canal', 'Aftercare'] },
+  { label: 'Crown fit', modules: ['Crown fit'] },
+];
 
 const treatmentChecklist = (patient: DemoPatient): ChecklistPoint[] => {
   const treatment = patient.treatment.toLowerCase();
@@ -26,12 +39,16 @@ const treatmentChecklist = (patient: DemoPatient): ChecklistPoint[] => {
       { id: 'plan', label: 'Treatment plan matches discussion', source: 'clinician', detail: 'Confirm the proposed treatment has not materially changed.' },
       { id: 'final-opportunity', label: 'Final opportunity to ask or reconsider', source: 'clinician', detail: 'Patient is given time to ask, pause or decide not to proceed.' },
     ];
+
     if (treatment.includes('graft')) {
-      points.splice(6, 0,
+      points.splice(
+        6,
+        0,
         { id: 'graft-purpose', label: 'Bone graft purpose and need', source: 'clinician', detail: 'Explain why grafting is proposed and how it relates to implant treatment.' },
         { id: 'graft-risks', label: 'Bone graft risks and recovery', source: 'clinician', detail: 'Discuss graft-specific risks, healing and any effect on timing.' },
       );
     }
+
     return points;
   }
 
@@ -71,10 +88,28 @@ const treatmentChecklist = (patient: DemoPatient): ChecklistPoint[] => {
 export default function ClinicianWorkspace() {
   const patients = demoPatients.filter((patient) => patient.attendance !== 'Cancel');
   const [selectedId, setSelectedId] = useState(patients[0].id);
-  const patient = useMemo(() => patients.find((item) => item.id === selectedId) ?? patients[0], [patients, selectedId]);
-  const missing = getMissingModules(patient);
+  const basePatient = useMemo(() => patients.find((item) => item.id === selectedId) ?? patients[0], [patients, selectedId]);
+
+  const [treatmentEdits, setTreatmentEdits] = useState<Record<string, TreatmentOption>>({});
+  const [draftTreatment, setDraftTreatment] = useState('');
+  const [treatmentChangeNote, setTreatmentChangeNote] = useState('');
+
+  const selectedTreatment = treatmentEdits[basePatient.id];
+  const patient = useMemo<DemoPatient>(() => {
+    if (!selectedTreatment) return basePatient;
+    return {
+      ...basePatient,
+      treatment: selectedTreatment.label,
+      treatmentModules: selectedTreatment.modules,
+    };
+  }, [basePatient, selectedTreatment]);
+
   const supportSummary = [...patient.accessibility, ...patient.support];
   const checklist = useMemo(() => treatmentChecklist(patient), [patient]);
+  const missing = useMemo(
+    () => patient.treatmentModules.filter((module) => !patient.completedModules.includes(module)),
+    [patient],
+  );
 
   const [covered, setCovered] = useState<Record<string, boolean>>({});
   const [clinicianConfirmed, setClinicianConfirmed] = useState(false);
@@ -90,14 +125,33 @@ export default function ClinicianWorkspace() {
     setCovered(initial);
     setClinicianConfirmed(false);
     setClarification('');
-  }, [patient, checklist, missing.length]);
+    setDraftTreatment(patient.treatment);
+    setTreatmentChangeNote('');
+  }, [patient.id, patient.treatment, checklist, missing.length]);
 
   const completedCount = checklist.filter((point) => covered[point.id]).length;
   const allCovered = completedCount === checklist.length && missing.length === 0;
   const remaining = checklist.length - completedCount;
+  const treatmentWasEdited = Boolean(treatmentEdits[basePatient.id]);
 
   const togglePoint = (id: string) => {
     setCovered((current) => ({ ...current, [id]: !current[id] }));
+    setClinicianConfirmed(false);
+  };
+
+  const applyTreatmentChange = () => {
+    const option = treatmentOptions.find((item) => item.label === draftTreatment);
+    if (!option) return;
+    setTreatmentEdits((current) => ({ ...current, [basePatient.id]: option }));
+    setClinicianConfirmed(false);
+  };
+
+  const revertTreatment = () => {
+    setTreatmentEdits((current) => {
+      const next = { ...current };
+      delete next[basePatient.id];
+      return next;
+    });
     setClinicianConfirmed(false);
   };
 
@@ -112,8 +166,8 @@ export default function ClinicianWorkspace() {
         <aside className="desktopSidebar">
           <span className="eyebrow">Today</span>
           {patients.map((item) => (
-            <button type="button" className={item.id === patient.id ? 'patientNav active patientNavButton' : 'patientNav patientNavButton'} key={item.id} onClick={() => setSelectedId(item.id)}>
-              <strong>{item.time} · {item.name}</strong><span>{item.treatment}</span><em>{item.clinicianStatus}</em>
+            <button type="button" className={item.id === basePatient.id ? 'patientNav active patientNavButton' : 'patientNav patientNavButton'} key={item.id} onClick={() => setSelectedId(item.id)}>
+              <strong>{item.time} · {item.name}</strong><span>{treatmentEdits[item.id]?.label ?? item.treatment}</span><em>{item.clinicianStatus}</em>
             </button>
           ))}
         </aside>
@@ -135,6 +189,36 @@ export default function ClinicianWorkspace() {
             <div className="metric"><span>Anxiety</span><strong>{patient.anxiety === null ? 'Not captured' : `${patient.anxiety}/10`}</strong></div>
           </div>
 
+          <section className={`dashboardCard ${treatmentWasEdited || missing.length ? 'alertCard' : ''}`} style={{ marginBottom: 18 }}>
+            <div className="cardHeader">
+              <div><span className="eyebrow">Treatment plan</span><h2>Review or edit the treatment before consent</h2></div>
+              <span className={`status ${treatmentWasEdited ? 'amber' : 'green'}`}>{treatmentWasEdited ? 'Changed in clinic' : 'Matches pre-care'}</span>
+            </div>
+            <div className="section">
+              <span className="sectionTitle">Current treatment</span>
+              <p><strong>{patient.treatment}</strong></p>
+            </div>
+            <div className="section" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, alignItems: 'end' }}>
+              <label>
+                <span className="sectionTitle">Change treatment</span>
+                <select className="adminInput" value={draftTreatment} onChange={(event) => setDraftTreatment(event.target.value)}>
+                  {treatmentOptions.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
+                </select>
+              </label>
+              <button className="primary desktopButton" type="button" onClick={applyTreatmentChange} disabled={!draftTreatment || draftTreatment === patient.treatment}>Apply change</button>
+            </div>
+            <div className="section">
+              <span className="sectionTitle">Reason / clinical note</span>
+              <textarea className="questionBox" value={treatmentChangeNote} onChange={(event) => setTreatmentChangeNote(event.target.value)} placeholder="Optional: record why the treatment plan changed, for example bone graft now required after clinical assessment..." />
+            </div>
+            {treatmentWasEdited && (
+              <div className="section" style={{ background: '#fff8ed' }}>
+                <p><strong>Treatment changed from {basePatient.treatment} to {patient.treatment}.</strong> Sitora has recalculated the consent pathway. Any newly required modules or discussion points are now shown below and final confirmation is blocked until they are resolved.</p>
+                <button className="secondary desktopButton" type="button" onClick={revertTreatment} style={{ marginTop: 12 }}>Revert to original treatment</button>
+              </div>
+            )}
+          </section>
+
           <div className="desktopCards">
             <section className="dashboardCard">
               <div className="cardHeader"><div><span className="eyebrow">Patient briefing</span><h2>What to know before you start</h2></div></div>
@@ -148,9 +232,9 @@ export default function ClinicianWorkspace() {
               <div className="cardHeader"><div><span className="eyebrow">Treatment reconciliation</span><h2>Make sure the pathway still matches</h2></div><span className={`status ${missing.length ? 'amber' : 'green'}`}>{missing.length ? 'Mismatch' : 'Matched'}</span></div>
               <div className="section"><span className="sectionTitle">Current treatment</span><p>{patient.treatment}</p></div>
               <div className="auditList">
-                {patient.treatmentModules.map((module) => <div className="auditRow" key={module}><span>{module}</span><strong>{patient.completedModules.includes(module) ? 'Pre-care covered' : 'Missing pre-care module'}</strong></div>)}
+                {patient.treatmentModules.map((module) => <div className="auditRow" key={module}><span>{module}</span><strong>{patient.completedModules.includes(module) ? 'Pre-care covered' : 'New / missing module'}</strong></div>)}
               </div>
-              {missing.length > 0 && <div className="section"><p><strong>Do not proceed to final confirmation.</strong> Add or discuss: {missing.join(', ')}.</p><button className="primary desktopButton">Send additional module</button></div>}
+              {missing.length > 0 && <div className="section"><p><strong>Do not proceed to final confirmation.</strong> Newly required or missing: {missing.join(', ')}.</p><button className="primary desktopButton">Send additional module</button></div>}
             </section>
           </div>
 
@@ -187,7 +271,7 @@ export default function ClinicianWorkspace() {
             <div className="cardHeader"><div><span className="eyebrow">Clinical clarification</span><h2>Add anything material to the record</h2></div></div>
             <div className="section">
               <textarea className="questionBox" value={clarification} onChange={(event) => setClarification(event.target.value)} placeholder="Optional: record a clarification, patient-specific discussion point or additional information discussed..." />
-              <p className="muted">Prototype note: this will become a timestamped audit event in the production record.</p>
+              <p className="muted">Prototype note: treatment changes, clarifications and checklist actions become timestamped audit events in the production record.</p>
             </div>
           </section>
 
@@ -206,7 +290,7 @@ export default function ClinicianWorkspace() {
             {clinicianConfirmed && (
               <div className="section" style={{ background: '#eef7f2' }}>
                 <span className="sectionTitle">Next step</span>
-                <p><strong>Ready for patient final confirmation.</strong> Sitora will now present the secondary patient confirmation. The clinician confirmation, checklist state, treatment version, clarifications and timestamps are retained in the audit trail.</p>
+                <p><strong>Ready for patient final confirmation.</strong> Sitora will now present the secondary patient confirmation. The clinician confirmation, checklist state, treatment version, treatment changes, clarifications and timestamps are retained in the audit trail.</p>
               </div>
             )}
           </section>
