@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { demoPatients, type DemoPatient } from '../lib/demo-data';
 
@@ -108,6 +109,7 @@ export default function ClinicianWorkspace() {
   const [changePromptOpen, setChangePromptOpen] = useState(false);
   const [newPointIds, setNewPointIds] = useState<string[]>([]);
   const [newPointsDiscussed, setNewPointsDiscussed] = useState(false);
+  const [treatmentCompletedByPatient, setTreatmentCompletedByPatient] = useState<Record<string, boolean>>({});
 
   const selectedTreatment = treatmentEdits[basePatient.id];
   const patient = useMemo<DemoPatient>(() => {
@@ -155,6 +157,7 @@ export default function ClinicianWorkspace() {
   const treatmentWasEdited = Boolean(treatmentEdits[basePatient.id]);
   const auditEvents = auditByPatient[basePatient.id] ?? [];
   const newPoints = checklist.filter((point) => newPointIds.includes(point.id));
+  const treatmentCompleted = Boolean(treatmentCompletedByPatient[basePatient.id]);
 
   const togglePoint = (id: string) => {
     setCovered((current) => ({ ...current, [id]: !current[id] }));
@@ -176,10 +179,8 @@ export default function ClinicianWorkspace() {
     setChangePromptOpen(true);
     setNewPointsDiscussed(false);
     setClinicianConfirmed(false);
-    addAudit(
-      'Treatment changed',
-      `${patient.treatment} → ${option.label}${treatmentChangeNote.trim() ? ` · ${treatmentChangeNote.trim()}` : ''}`,
-    );
+    setTreatmentCompletedByPatient((current) => ({ ...current, [basePatient.id]: false }));
+    addAudit('Treatment changed', `${patient.treatment} → ${option.label}${treatmentChangeNote.trim() ? ` · ${treatmentChangeNote.trim()}` : ''}`);
   };
 
   const markNewPointsDiscussed = () => {
@@ -192,11 +193,7 @@ export default function ClinicianWorkspace() {
     });
 
     const newlyAddedModules = patient.treatmentModules.filter((module) => !basePatient.completedModules.includes(module));
-    setResolvedModules((current) => ({
-      ...current,
-      [basePatient.id]: Array.from(new Set([...(current[basePatient.id] ?? []), ...newlyAddedModules])),
-    }));
-
+    setResolvedModules((current) => ({ ...current, [basePatient.id]: Array.from(new Set([...(current[basePatient.id] ?? []), ...newlyAddedModules])) }));
     setNewPointsDiscussed(true);
     setChangePromptOpen(false);
     addAudit('Additional consent points discussed', newPoints.map((point) => point.label).join(' · ') || 'Updated treatment discussion completed.');
@@ -214,6 +211,7 @@ export default function ClinicianWorkspace() {
     setChangePromptOpen(false);
     setNewPointsDiscussed(false);
     setClinicianConfirmed(false);
+    setTreatmentCompletedByPatient((current) => ({ ...current, [basePatient.id]: false }));
     addAudit('Treatment change reverted', `${currentTreatment} → ${basePatient.treatment}`);
   };
 
@@ -226,6 +224,13 @@ export default function ClinicianWorkspace() {
     if (!clarification.trim()) return;
     addAudit('Clinical clarification recorded', clarification.trim());
     setClarification('');
+  };
+
+  const markTreatmentCompleted = () => {
+    if (!clinicianConfirmed) return;
+    setTreatmentCompletedByPatient((current) => ({ ...current, [basePatient.id]: true }));
+    addAudit('Treatment completed', `${patient.treatment} recorded as performed. Treatment-specific aftercare journey generated.`);
+    addAudit('Aftercare generated', `Sitora After created for ${patient.treatment}.`);
   };
 
   return (
@@ -247,11 +252,7 @@ export default function ClinicianWorkspace() {
 
         <section className="desktopContent">
           <div className="heroPanel">
-            <div>
-              <span className="eyebrow">Consent control</span>
-              <h1>{patient.name}</h1>
-              <p>{patient.treatment} · {patient.time} · Review what is covered, complete anything outstanding and move smoothly to final patient confirmation.</p>
-            </div>
+            <div><span className="eyebrow">Consent control</span><h1>{patient.name}</h1><p>{patient.treatment} · {patient.time} · Review what is covered, complete anything outstanding and move smoothly to final patient confirmation.</p></div>
             <span className={`status ${allCovered ? 'green' : 'amber'}`}>{allCovered ? 'Ready for clinician confirmation' : `${remaining + unresolvedMissing.length} to complete`}</span>
           </div>
 
@@ -263,116 +264,33 @@ export default function ClinicianWorkspace() {
           </div>
 
           <section className={`dashboardCard ${treatmentWasEdited || unresolvedMissing.length ? 'alertCard' : ''}`} style={{ marginBottom: 18 }}>
-            <div className="cardHeader">
-              <div><span className="eyebrow">Treatment plan</span><h2>Review or edit treatment</h2></div>
-              <span className={`status ${treatmentWasEdited ? 'amber' : 'green'}`}>{treatmentWasEdited ? 'Changed in clinic' : 'Matches pre-care'}</span>
-            </div>
+            <div className="cardHeader"><div><span className="eyebrow">Treatment plan</span><h2>Review or edit treatment</h2></div><span className={`status ${treatmentWasEdited ? 'amber' : 'green'}`}>{treatmentWasEdited ? 'Changed in clinic' : 'Matches pre-care'}</span></div>
             <div className="section" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, alignItems: 'end' }}>
-              <label>
-                <span className="sectionTitle">Current treatment</span>
-                <select className="adminInput" value={draftTreatment} onChange={(event) => setDraftTreatment(event.target.value)}>
-                  {treatmentOptions.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
-                </select>
-              </label>
+              <label><span className="sectionTitle">Current treatment</span><select className="adminInput" value={draftTreatment} onChange={(event) => setDraftTreatment(event.target.value)}>{treatmentOptions.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}</select></label>
               <button className="primary desktopButton" type="button" onClick={applyTreatmentChange} disabled={!draftTreatment || draftTreatment === patient.treatment}>Apply change</button>
             </div>
-            <div className="section">
-              <span className="sectionTitle">Reason / clinical note</span>
-              <textarea className="questionBox" value={treatmentChangeNote} onChange={(event) => setTreatmentChangeNote(event.target.value)} placeholder="Optional reason for the change..." />
-            </div>
+            <div className="section"><span className="sectionTitle">Reason / clinical note</span><textarea className="questionBox" value={treatmentChangeNote} onChange={(event) => setTreatmentChangeNote(event.target.value)} placeholder="Optional reason for the change..." /></div>
             {treatmentWasEdited && <div className="section"><button className="secondary desktopButton" type="button" onClick={revertTreatment}>Revert to original treatment</button></div>}
           </section>
 
-          {changePromptOpen && (
-            <section className="dashboardCard alertCard" style={{ marginBottom: 18 }}>
-              <div className="cardHeader">
-                <div><span className="eyebrow">Treatment updated</span><h2>New points to cover</h2></div>
-                <span className="status amber">Before final consent</span>
-              </div>
-              <div className="section"><p>Only cover what changed. Keep the conversation short and clear.</p></div>
-              <div className="auditList">
-                {newPoints.map((point) => <div className="auditRow" key={point.id}><span>{point.label}</span><strong>Discuss</strong></div>)}
-              </div>
-              <div className="section">
-                <button className="primary desktopButton" type="button" onClick={markNewPointsDiscussed}>✓ Mark all discussed</button>
-              </div>
-            </section>
-          )}
+          {changePromptOpen && <section className="dashboardCard alertCard" style={{ marginBottom: 18 }}><div className="cardHeader"><div><span className="eyebrow">Treatment updated</span><h2>New points to cover</h2></div><span className="status amber">Before final consent</span></div><div className="section"><p>Only cover what changed. Keep the conversation short and clear.</p></div><div className="auditList">{newPoints.map((point) => <div className="auditRow" key={point.id}><span>{point.label}</span><strong>Discuss</strong></div>)}</div><div className="section"><button className="primary desktopButton" type="button" onClick={markNewPointsDiscussed}>✓ Mark all discussed</button></div></section>}
 
-          {newPointsDiscussed && treatmentWasEdited && (
-            <section className="dashboardCard" style={{ marginBottom: 18, background: '#eef7f2' }}>
-              <div className="section"><p><strong>Updated treatment discussion complete.</strong> The change and additional consent discussion have been added to the audit trail.</p></div>
-            </section>
-          )}
+          {newPointsDiscussed && treatmentWasEdited && <section className="dashboardCard" style={{ marginBottom: 18, background: '#eef7f2' }}><div className="section"><p><strong>Updated treatment discussion complete.</strong> The change and additional consent discussion have been added to the audit trail.</p></div></section>}
 
           <div className="desktopCards">
-            <section className="dashboardCard">
-              <div className="cardHeader"><div><span className="eyebrow">Patient briefing</span><h2>What to know before you start</h2></div></div>
-              <div className="section"><span className="sectionTitle">Understanding</span><p>{patient.understanding}</p></div>
-              <div className="section"><span className="sectionTitle">What matters</span><p>{patient.priority || 'Not captured yet.'}</p></div>
-              <div className="section"><span className="sectionTitle">Question to answer</span><p>{patient.question || 'No question submitted.'}</p></div>
-              <div className="section"><span className="sectionTitle">Support</span><p>{supportSummary.length ? supportSummary.join(' · ') : 'No additional support requested.'}</p></div>
-            </section>
-
-            <section className="dashboardCard">
-              <div className="cardHeader"><div><span className="eyebrow">Treatment reconciliation</span><h2>Pathway match</h2></div><span className={`status ${unresolvedMissing.length ? 'amber' : 'green'}`}>{unresolvedMissing.length ? 'Needs discussion' : 'Matched'}</span></div>
-              <div className="auditList">
-                {patient.treatmentModules.map((module) => {
-                  const resolved = basePatient.completedModules.includes(module) || (resolvedModules[basePatient.id] ?? []).includes(module);
-                  return <div className="auditRow" key={module}><span>{module}</span><strong>{resolved ? 'Covered' : 'New / missing'}</strong></div>;
-                })}
-              </div>
-            </section>
+            <section className="dashboardCard"><div className="cardHeader"><div><span className="eyebrow">Patient briefing</span><h2>What to know before you start</h2></div></div><div className="section"><span className="sectionTitle">Understanding</span><p>{patient.understanding}</p></div><div className="section"><span className="sectionTitle">What matters</span><p>{patient.priority || 'Not captured yet.'}</p></div><div className="section"><span className="sectionTitle">Question to answer</span><p>{patient.question || 'No question submitted.'}</p></div><div className="section"><span className="sectionTitle">Support</span><p>{supportSummary.length ? supportSummary.join(' · ') : 'No additional support requested.'}</p></div></section>
+            <section className="dashboardCard"><div className="cardHeader"><div><span className="eyebrow">Treatment reconciliation</span><h2>Pathway match</h2></div><span className={`status ${unresolvedMissing.length ? 'amber' : 'green'}`}>{unresolvedMissing.length ? 'Needs discussion' : 'Matched'}</span></div><div className="auditList">{patient.treatmentModules.map((module) => { const resolved = basePatient.completedModules.includes(module) || (resolvedModules[basePatient.id] ?? []).includes(module); return <div className="auditRow" key={module}><span>{module}</span><strong>{resolved ? 'Covered' : 'New / missing'}</strong></div>; })}</div></section>
           </div>
 
-          <section className="dashboardCard" style={{ marginTop: 18 }}>
-            <div className="cardHeader">
-              <div><span className="eyebrow">Full treatment consent checklist</span><h2>Everything in one place</h2></div>
-              <span className={`status ${allCovered ? 'green' : 'amber'}`}>{completedCount}/{checklist.length} covered</span>
-            </div>
-            <div className="section"><p>Already-covered points stay visible for peace of mind. Only outstanding points need action.</p></div>
-            <div className="auditList">
-              {checklist.map((point) => {
-                const isCovered = Boolean(covered[point.id]);
-                return (
-                  <div key={point.id} style={{ padding: '14px 0', borderBottom: '1px solid #edf2f0', display: 'grid', gridTemplateColumns: '40px minmax(0,1fr) auto', gap: 14, alignItems: 'start' }}>
-                    <button type="button" aria-label={`${isCovered ? 'Mark incomplete' : 'Mark covered'}: ${point.label}`} onClick={() => togglePoint(point.id)} style={{ width: 30, height: 30, borderRadius: 9, border: isCovered ? '1px solid #245c5a' : '1px solid #cbd8d4', background: isCovered ? '#e8f1ef' : '#fff', color: '#245c5a', fontWeight: 900, cursor: 'pointer' }}>{isCovered ? '✓' : ''}</button>
-                    <div><strong style={{ display: 'block', color: '#173f3d', fontSize: 14, marginBottom: 5 }}>{point.label}</strong><span style={{ display: 'block', color: '#667773', fontSize: 12, lineHeight: 1.5 }}>{point.detail}</span></div>
-                    <span className={`status ${isCovered ? 'green' : 'amber'}`}>{isCovered ? (point.source === 'pre-care' ? 'Pre-care covered' : 'Discussed') : 'Clinician to cover'}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <section className="dashboardCard" style={{ marginTop: 18 }}><div className="cardHeader"><div><span className="eyebrow">Full treatment consent checklist</span><h2>Everything in one place</h2></div><span className={`status ${allCovered ? 'green' : 'amber'}`}>{completedCount}/{checklist.length} covered</span></div><div className="section"><p>Already-covered points stay visible for peace of mind. Only outstanding points need action.</p></div><div className="auditList">{checklist.map((point) => { const isCovered = Boolean(covered[point.id]); return <div key={point.id} style={{ padding: '14px 0', borderBottom: '1px solid #edf2f0', display: 'grid', gridTemplateColumns: '40px minmax(0,1fr) auto', gap: 14, alignItems: 'start' }}><button type="button" aria-label={`${isCovered ? 'Mark incomplete' : 'Mark covered'}: ${point.label}`} onClick={() => togglePoint(point.id)} style={{ width: 30, height: 30, borderRadius: 9, border: isCovered ? '1px solid #245c5a' : '1px solid #cbd8d4', background: isCovered ? '#e8f1ef' : '#fff', color: '#245c5a', fontWeight: 900, cursor: 'pointer' }}>{isCovered ? '✓' : ''}</button><div><strong style={{ display: 'block', color: '#173f3d', fontSize: 14, marginBottom: 5 }}>{point.label}</strong><span style={{ display: 'block', color: '#667773', fontSize: 12, lineHeight: 1.5 }}>{point.detail}</span></div><span className={`status ${isCovered ? 'green' : 'amber'}`}>{isCovered ? (point.source === 'pre-care' ? 'Pre-care covered' : 'Discussed') : 'Clinician to cover'}</span></div>; })}</div></section>
 
-          <section className="dashboardCard" style={{ marginTop: 18 }}>
-            <div className="cardHeader"><div><span className="eyebrow">Clinical clarification</span><h2>Add anything material</h2></div></div>
-            <div className="section">
-              <textarea className="questionBox" value={clarification} onChange={(event) => setClarification(event.target.value)} placeholder="Optional clarification or patient-specific discussion point..." />
-              <button className="secondary desktopButton" type="button" onClick={saveClarification} disabled={!clarification.trim()} style={{ marginTop: 12 }}>Save to audit</button>
-            </div>
-          </section>
+          <section className="dashboardCard" style={{ marginTop: 18 }}><div className="cardHeader"><div><span className="eyebrow">Clinical clarification</span><h2>Add anything material</h2></div></div><div className="section"><textarea className="questionBox" value={clarification} onChange={(event) => setClarification(event.target.value)} placeholder="Optional clarification or patient-specific discussion point..." /><button className="secondary desktopButton" type="button" onClick={saveClarification} disabled={!clarification.trim()} style={{ marginTop: 12 }}>Save to audit</button></div></section>
 
-          <section className={`dashboardCard ${!allCovered ? 'alertCard' : ''}`} style={{ marginTop: 18 }}>
-            <div className="cardHeader">
-              <div><span className="eyebrow">Clinician confirmation</span><h2>{clinicianConfirmed ? 'Clinical discussion confirmed' : 'Confirm all required points are covered'}</h2></div>
-              <span className={`status ${clinicianConfirmed ? 'green' : 'amber'}`}>{clinicianConfirmed ? 'Confirmed' : allCovered ? 'Ready' : 'Not ready'}</span>
-            </div>
-            <div className="section"><p>I confirm that I have reviewed the pre-care record, covered all outstanding and patient-specific points, and addressed relevant questions.</p></div>
-            <div className="section">
-              <button className="primary desktopButton" disabled={!allCovered || clinicianConfirmed} onClick={confirmClinicianDiscussion}>{clinicianConfirmed ? 'Clinical discussion confirmed ✓' : 'Confirm clinical discussion complete'}</button>
-            </div>
-            {clinicianConfirmed && <div className="section" style={{ background: '#eef7f2' }}><p><strong>Ready for patient final confirmation.</strong> The clinician confirmation has been added to the audit trail.</p></div>}
-          </section>
+          <section className={`dashboardCard ${!allCovered ? 'alertCard' : ''}`} style={{ marginTop: 18 }}><div className="cardHeader"><div><span className="eyebrow">Clinician confirmation</span><h2>{clinicianConfirmed ? 'Clinical discussion confirmed' : 'Confirm all required points are covered'}</h2></div><span className={`status ${clinicianConfirmed ? 'green' : 'amber'}`}>{clinicianConfirmed ? 'Confirmed' : allCovered ? 'Ready' : 'Not ready'}</span></div><div className="section"><p>I confirm that I have reviewed the pre-care record, covered all outstanding and patient-specific points, and addressed relevant questions.</p></div><div className="section"><button className="primary desktopButton" disabled={!allCovered || clinicianConfirmed} onClick={confirmClinicianDiscussion}>{clinicianConfirmed ? 'Clinical discussion confirmed ✓' : 'Confirm clinical discussion complete'}</button></div>{clinicianConfirmed && <div className="section" style={{ background: '#eef7f2' }}><p><strong>Ready for patient final confirmation.</strong> The clinician confirmation has been added to the audit trail.</p></div>}</section>
 
-          <section className="dashboardCard" style={{ marginTop: 18, marginBottom: 32 }}>
-            <div className="cardHeader"><div><span className="eyebrow">Audit trail</span><h2>Consent journey evidence</h2></div><span className="status green">Retained</span></div>
-            <div className="auditList">
-              <div className="auditRow"><span>Pre-care journey</span><strong>{patient.journey} · original record retained</strong></div>
-              {auditEvents.length === 0 && <div className="auditRow"><span>During appointment</span><strong>No new audit events yet</strong></div>}
-              {auditEvents.map((event) => <div className="auditRow" key={event.id}><span>{event.time} · {event.title}</span><strong>{event.detail}</strong></div>)}
-            </div>
-          </section>
+          {clinicianConfirmed && <section className="dashboardCard" style={{ marginTop: 18 }}><div className="cardHeader"><div><span className="eyebrow">Treatment completion</span><h2>{treatmentCompleted ? 'Aftercare journey ready' : 'When treatment is complete'}</h2></div><span className={`status ${treatmentCompleted ? 'green' : 'neutral'}`}>{treatmentCompleted ? 'Sitora After generated' : 'Awaiting treatment'}</span></div><div className="section"><p>Once the treatment performed is confirmed, Sitora creates aftercare from the <strong>actual treatment delivered</strong>, including any changes made during the appointment.</p></div><div className="section">{!treatmentCompleted ? <button className="primary desktopButton" type="button" onClick={markTreatmentCompleted}>Mark treatment completed & generate aftercare</button> : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}><Link className="primary desktopButton" href={`/after/${basePatient.id}`}>Open patient aftercare →</Link><span className="muted">{patient.treatment} pathway generated and added to audit.</span></div>}</div></section>}
+
+          <section className="dashboardCard" style={{ marginTop: 18, marginBottom: 32 }}><div className="cardHeader"><div><span className="eyebrow">Audit trail</span><h2>Consent journey evidence</h2></div><span className="status green">Retained</span></div><div className="auditList"><div className="auditRow"><span>Pre-care journey</span><strong>{patient.journey} · original record retained</strong></div>{auditEvents.length === 0 && <div className="auditRow"><span>During appointment</span><strong>No new audit events yet</strong></div>}{auditEvents.map((event) => <div className="auditRow" key={event.id}><span>{event.time} · {event.title}</span><strong>{event.detail}</strong></div>)}</div></section>
         </section>
       </section>
     </main>
