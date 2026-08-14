@@ -12,15 +12,7 @@ export type { ConsentPointSource };
 export type TreatmentConsentDefinition = TreatmentRegistryItem;
 
 const fallbackDefinition: TreatmentRegistryItem = {
-  id: 'generic-treatment',
-  label: 'Other treatment',
-  aliases: [],
-  category: 'Other',
-  estimatedMinutes: 5,
-  status: 'Draft',
-  version: '0.1',
-  modules: [],
-  content: [],
+  id: 'generic-treatment', label: 'Other treatment', aliases: [], category: 'Other', estimatedMinutes: 5, status: 'Draft', version: '0.1', modules: [], content: [],
   consentPoints: [
     { id: 'purpose', label: 'Purpose of proposed treatment', source: 'pre-care' },
     { id: 'risks', label: 'Important risks and limitations', source: 'pre-care' },
@@ -32,44 +24,29 @@ const fallbackDefinition: TreatmentRegistryItem = {
 };
 
 export const treatmentConsentDefinitions = treatmentRegistry;
+export const treatmentOptions = treatmentRegistry.map(({ id, label, modules, status, version }) => ({ id, label, modules, status, version }));
+export const getTreatmentOptions = (registry: TreatmentRegistryItem[] = treatmentRegistry) => registry.map(({ id, label, modules, status, version }) => ({ id, label, modules, status, version }));
 
-export const treatmentOptions = treatmentRegistry.map(({ id, label, modules, status, version }) => ({
-  id,
-  label,
-  modules,
-  status,
-  version,
-}));
-
-export function getTreatmentDefinition(treatment: string): TreatmentRegistryItem {
-  return findRegistryTreatment(treatment) ?? fallbackDefinition;
+export function getTreatmentDefinition(treatment: string, registry: TreatmentRegistryItem[] = treatmentRegistry): TreatmentRegistryItem {
+  return findRegistryTreatment(treatment, registry) ?? fallbackDefinition;
 }
 
-export function getConsentChecklist(patient: DemoPatient): ConsentPoint[] {
-  const definition = getTreatmentDefinition(patient.treatment);
-  return definition.consentPoints.map((point) => ({
-    ...point,
-    detail: point.id === 'questions' ? patient.question || point.detail : point.detail,
-  }));
+export function getConsentChecklist(patient: DemoPatient, registry: TreatmentRegistryItem[] = treatmentRegistry): ConsentPoint[] {
+  const definition = getTreatmentDefinition(patient.treatment, registry);
+  return definition.consentPoints.map((point) => ({ ...point, detail: point.id === 'questions' ? patient.question || point.detail : point.detail }));
 }
 
-export function getTreatmentChangePrompt(beforePatient: DemoPatient, afterPatient: DemoPatient): string[] {
-  const before = getConsentChecklist(beforePatient);
-  const after = getConsentChecklist(afterPatient);
+export function getTreatmentChangePrompt(beforePatient: DemoPatient, afterPatient: DemoPatient, registry: TreatmentRegistryItem[] = treatmentRegistry): string[] {
+  const before = getConsentChecklist(beforePatient, registry);
+  const after = getConsentChecklist(afterPatient, registry);
   const beforeIds = new Set(before.map((point) => point.id));
   const added = after.filter((point) => !beforeIds.has(point.id)).map((point) => point.id);
-
-  return added.length
-    ? added
-    : after.filter((point) => point.source === 'clinician').map((point) => point.id);
+  return added.length ? added : after.filter((point) => point.source === 'clinician').map((point) => point.id);
 }
 
 export function createInitialCoverage(patient: DemoPatient, checklist = getConsentChecklist(patient)): Record<string, boolean> {
   const initial: Record<string, boolean> = {};
-  checklist.forEach((point) => {
-    initial[point.id] = point.source === 'pre-care' && patient.journey === 'Complete';
-  });
-
+  checklist.forEach((point) => { initial[point.id] = point.source === 'pre-care' && patient.journey === 'Complete'; });
   if (patient.understanding.toLowerCase().includes('corrected')) initial.success = false;
   return initial;
 }
