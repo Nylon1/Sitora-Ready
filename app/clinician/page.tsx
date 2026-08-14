@@ -1,5 +1,5 @@
-import ClinicianWorkspaceV3 from '../../components/ClinicianWorkspaceV3';
+import ClinicianWorkspaceV4 from '../../components/ClinicianWorkspaceV4';
 
 export default function ClinicianPage() {
-  return <ClinicianWorkspaceV3 />;
+  return <ClinicianWorkspaceV4 />;
 }
